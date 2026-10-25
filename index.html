@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#102a43">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Mandarin Live">
+<link rel="manifest" href="./manifest.webmanifest">
+<title>Mandarin Live Translator</title>
+<style>
+:root{--navy:#102a43;--blue:#1769aa;--bg:#f3f6fa;--card:#fff;--ink:#142536;--muted:#607386;--line:#dce5ed;--green:#16835d}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
+header{background:var(--navy);color:#fff;padding:22px 18px 20px;border-radius:0 0 24px 24px}header h1{font-size:22px;margin:0 0 6px}header p{margin:0;color:#d7e7f5;font-size:13px}
+main{max-width:760px;margin:auto;padding:14px;display:grid;gap:12px}.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:15px;box-shadow:0 2px 8px #102a4308}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.row>*{flex:1}.btn{border:0;border-radius:12px;padding:13px 12px;font-size:15px;font-weight:650;background:var(--blue);color:#fff;cursor:pointer}.btn.secondary{background:#e8f0f7;color:var(--navy)}.btn.stop{background:#a83232}.btn:disabled{opacity:.45}
+label{display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:7px;text-transform:uppercase;letter-spacing:.04em}
+h2{font-size:16px;margin:0 0 10px}.big{font-size:19px;line-height:1.5;white-space:pre-wrap;overflow-wrap:anywhere}.small{font-size:13px;color:var(--muted);line-height:1.5}.status{font-size:13px;color:var(--muted);margin-top:10px}.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#9aa9b6;margin-right:6px}.dot.on{background:#1ca36d}
+textarea,input,select{width:100%;border:1px solid var(--line);border-radius:11px;padding:11px;font:inherit;background:#fff;color:var(--ink)}textarea{min-height:90px;resize:vertical}.tabs{display:flex;gap:7px}.tabs button{flex:1;border:1px solid var(--line);border-radius:10px;background:#fff;padding:10px;font-weight:600}.tabs button.active{background:#e5f1fb;border-color:#8bbbe1;color:#124e7b}.pill{display:inline-block;padding:5px 8px;background:#edf4f8;border-radius:99px;font-size:12px;margin:3px 3px 0 0}.divider{height:1px;background:var(--line);margin:12px 0}.note{border:1px solid var(--line);padding:10px;border-radius:12px;margin-top:8px}.note p{margin:5px 0;white-space:pre-wrap}.danger{color:#9c3131}.footer{text-align:center;color:var(--muted);font-size:11px;padding:6px 12px 20px}
+</style>
+</head>
+<body>
+<header><h1>Mandarin Live Translator</h1><p>中文 · Pinyin · Bahasa Indonesia · English</p></header>
+<main>
+<section class="card">
+  <div class="row">
+    <button id="start" class="btn">🎙 Mulai live</button>
+    <button id="stop" class="btn stop" disabled>■ Berhenti</button>
+  </div>
+  <div class="status"><span id="dot" class="dot"></span><span id="status">Belum merekam. Tekan Mulai live dan izinkan mikrofon.</span></div>
+  <p class="small">Biarkan halaman tetap terbuka dan layar menyala. Pengenalan suara bergantung pada dukungan iOS/Safari dan koneksi internet.</p>
+</section>
+<section class="card">
+  <label>Bahasa keluaran</label>
+  <div class="tabs"><button class="active" id="bothBtn">Indonesia + English</button><button id="idBtn">Indonesia</button><button id="enBtn">English</button></div>
+  <div class="divider"></div>
+  <label>Mandarin yang dikenali · 中文</label>
+  <div id="zh" class="big">Hasil ucapan Mandarin akan muncul di sini.</div>
+  <div class="divider"></div>
+  <label>Pinyin</label>
+  <div id="py" class="big">Pinyin akan muncul di sini.</div>
+  <div class="divider"></div>
+  <label>Bahasa Indonesia</label>
+  <div id="id" class="big">Terjemahan Indonesia akan muncul di sini.</div>
+  <div id="enWrap"><div class="divider"></div><label>English</label><div id="en" class="big">English translation will appear here.</div></div>
+  <p id="translationStatus" class="small"></p>
+</section>
+<section class="card">
+  <h2>Catatan kuliah</h2>
+  <textarea id="noteText" placeholder="Tambahkan catatan manual di sini…"></textarea>
+  <div class="row" style="margin-top:8px"><button class="btn secondary" id="saveNote">Simpan catatan</button><button class="btn secondary" id="export">Ekspor TXT</button></div>
+  <div id="notesList"></div>
+</section>
+<section class="card">
+  <h2>Kamus medis Mandarin</h2>
+  <input id="dictSearch" placeholder="Cari: 心电图, aritmia, ECG…">
+  <div id="dictResults"></div>
+  <p class="small">Kamus awal terbatas; istilah hasil pengenalan suara tetap perlu diverifikasi.</p>
+</section>
+<section class="card">
+  <h2>Rangkuman sesi</h2>
+  <p class="small">Rangkuman awal dibuat secara lokal dari kalimat yang dikenali (bukan ringkasan AI). Periksa kembali sebelum digunakan untuk belajar klinis.</p>
+  <button class="btn secondary" id="summaryBtn">Buat rangkuman</button>
+  <div id="summary" style="margin-top:10px;white-space:pre-wrap;line-height:1.5"></div>
+</section>
+<section class="card">
+  <h2>Uji terjemahan dengan teks</h2>
+  <textarea id="manualText" placeholder="Tempel teks Mandarin di sini untuk menguji terjemahan tanpa mikrofon…"></textarea>
+  <button class="btn secondary" id="translateManual" style="width:100%;margin-top:8px">Terjemahkan teks</button>
+</section>
+</main>
+<div class="footer">Versi prototipe · Catatan disimpan di perangkat ini · Jangan merekam kuliah tanpa izin.</div>
+<script src="https://cdn.jsdelivr.net/npm/pinyin-pro@3.26.0/dist/index.js"></script>
+<script>
+(() => {
+const $ = id => document.getElementById(id);
+let recognition = null, running = false, finalText = "", outputMode = "both", translationTimer = null, lastTranslated = "";
+const dictionary = [
+["心电图","xīndiàntú","elektrokardiogram (EKG)","electrocardiogram (ECG)"],
+["心肌梗死","xīnjī gěngsǐ","infark miokard","myocardial infarction"],
+["心律失常","xīnlǜ shīcháng","aritmia","arrhythmia"],
+["高血压","gāo xuèyā","hipertensi","hypertension"],
+["冠心病","guānxīnbìng","penyakit jantung koroner","coronary artery disease"],
+["心力衰竭","xīnlì shuāijié","gagal jantung","heart failure"],
+["房颤","fángchàn","fibrilasi atrium","atrial fibrillation"],
+["心肌缺血","xīnjī quēxuè","iskemia miokard","myocardial ischemia"],
+["血压","xuèyā","tekanan darah","blood pressure"],
+["呼吸困难","hūxī kùnnán","sesak napas","shortness of breath"],
+["肺炎","fèiyán","pneumonia","pneumonia"],
+["血栓","xuèshuān","trombus / bekuan darah","thrombus / blood clot"],
+["手术","shǒushù","operasi","surgery"],
+["诊断","zhěnduàn","diagnosis","diagnosis"],
+["治疗","zhìliáo","pengobatan","treatment"]
+];
+const saved = () => {try{return JSON.parse(localStorage.getItem("mlt-notes")||"[]")}catch{return []}};
+function setStatus(t,on=false){$("status").textContent=t;$("dot").className="dot"+(on?" on":"")}
+function setRunning(on){running=on;$("start").disabled=on;$("stop").disabled=!on}
+function pinyin(text){try{if(window.pinyinPro&&window.pinyinPro.pinyin)return window.pinyinPro.pinyin(text,{toneType:"symbol",type:"string"});}catch(e){}return "Pinyin tidak tersedia (periksa koneksi internet)."}
+async function translate(text,target){
+  if(!text.trim())return "";
+  // MyMemory public endpoint: suitable for prototype testing; has usage limits and is not a medical-grade service.
+  const url="https://api.mymemory.translated.net/get?q="+encodeURIComponent(text.slice(-450))+"&langpair=zh-CN|"+target;
+  const res=await fetch(url); if(!res.ok)throw new Error("HTTP "+res.status);
+  const data=await res.json(); if(data.responseStatus!==200 && !data.responseData?.translatedText)throw new Error(data.responseDetails||"Layanan terjemahan menolak permintaan");
+  return data.responseData.translatedText || "";
+}
+async function translateCurrent(text){
+  if(!text.trim()||text===lastTranslated)return; lastTranslated=text;
+  $("translationStatus").textContent="Menerjemahkan…";
+  try{
+    const jobs=[];
+    if(outputMode!=="en")jobs.push(translate(text,"id").then(v=>$("id").textContent=v));
+    if(outputMode!=="id")jobs.push(translate(text,"en").then(v=>$("en").textContent=v));
+    await Promise.all(jobs);
+    $("translationStatus").textContent="Terjemahan diperbarui. Periksa kembali istilah teknis.";
+  }catch(e){$("translationStatus").textContent="Terjemahan gagal: "+e.message+". Coba lagi atau gunakan uji terjemahan teks.";}
+}
+function renderText(text, isFinal){
+  if(!text.trim())return;
+  $("zh").textContent=text;
+  $("py").textContent=pinyin(text);
+  clearTimeout(translationTimer);
+  // Wait briefly for a phrase boundary so interim recognition doesn't spam translation service.
+  translationTimer=setTimeout(()=>translateCurrent(text), isFinal?150:900);
+}
+function start(){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){setStatus("Pengenalan suara tidak tersedia pada browser ini. Coba Safari versi terbaru; bila tetap gagal perlu backend speech-to-text.",false);return;}
+  try{
+    recognition=new SR(); recognition.lang="zh-CN"; recognition.continuous=true; recognition.interimResults=true; recognition.maxAlternatives=1;
+    recognition.onstart=()=>{setRunning(true);setStatus("Mendengarkan Mandarin…",true)};
+    recognition.onerror=e=>{setStatus("Kesalahan mikrofon/pengenalan: "+e.error+". Pastikan izin mikrofon dan internet aktif.",false)};
+    recognition.onend=()=>{setRunning(false);if(running===false)setStatus("Sesi berhenti. Jika terhenti sendiri, tekan Mulai live lagi.",false)};
+    recognition.onresult=e=>{
+      let interim="";
+      for(let i=e.resultIndex;i<e.results.length;i++){
+        const t=e.results[i][0].transcript;
+        if(e.results[i].isFinal){finalText+=(finalText?" ":"")+t; renderText(finalText,true);}
+        else interim+=t;
+      }
+      if(interim)renderText(finalText+(finalText?" ":"")+interim,false);
+    };
+    recognition.start();
+  }catch(e){setStatus("Tidak dapat memulai: "+e.message,false)}
+}
+$("start").addEventListener("click",start);
+$("stop").addEventListener("click",()=>{if(recognition){try{recognition.stop()}catch(e){}}setRunning(false);setStatus("Perekaman dihentikan.",false)});
+function chooseMode(m){outputMode=m;["bothBtn","idBtn","enBtn"].forEach(id=>$(id).classList.remove("active"));$(({both:"bothBtn",id:"idBtn",en:"enBtn"})[m]).classList.add("active");$("id").parentElement.style.display=m==="en"?"none":"block";$("enWrap").style.display=m==="id"?"none":"block";lastTranslated="";if($("zh").textContent!=="Hasil ucapan Mandarin akan muncul di sini.")translateCurrent($("zh").textContent)}
+$("bothBtn").onclick=()=>chooseMode("both");$("idBtn").onclick=()=>chooseMode("id");$("enBtn").onclick=()=>chooseMode("en");
+function renderNotes(){const list=saved();$("notesList").innerHTML="";list.slice().reverse().forEach(n=>{const d=document.createElement("div");d.className="note";const p=document.createElement("p");p.textContent=n.text;const meta=document.createElement("small");meta.className="small";meta.textContent=new Date(n.time).toLocaleString();d.append(p,meta);$("notesList").append(d)})}
+$("saveNote").onclick=()=>{const text=$("noteText").value.trim()||$("zh").textContent;if(!text||text==="Hasil ucapan Mandarin akan muncul di sini.")return;const list=saved();list.push({text,translation:$("id").textContent,english:$("en").textContent,time:Date.now()});localStorage.setItem("mlt-notes",JSON.stringify(list));$("noteText").value="";renderNotes()};
+$("export").onclick=()=>{const notes=saved();const content=notes.map(n=>new Date(n.time).toLocaleString()+"\nMandarin/Notes: "+n.text+"\nID: "+n.translation+"\nEN: "+n.english).join("\n\n---\n\n");const blob=new Blob([content||"Belum ada catatan."],{type:"text/plain;charset=utf-8"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="mandarin-live-notes.txt";a.click();URL.revokeObjectURL(a.href)};
+function renderDict(q=""){const matches=dictionary.filter(x=>x.join(" ").toLowerCase().includes(q.toLowerCase()));$("dictResults").innerHTML="";matches.forEach(x=>{const d=document.createElement("div");d.className="note";d.innerHTML='<strong></strong><div class="small"></div><div></div>';d.children[0].textContent=x[0];d.children[1].textContent=x[1];d.children[2].textContent=x[2]+" · "+x[3];$("dictResults").append(d)});if(!matches.length)$("dictResults").textContent="Tidak ditemukan."}
+$("dictSearch").addEventListener("input",e=>renderDict(e.target.value));renderDict();renderNotes();
+$("summaryBtn").onclick=()=>{const t=saved().map(n=>n.text).join(" ")+" "+finalText;const clean=t.replace(/Hasil ucapan Mandarin akan muncul di sini\\./g,"").trim();if(!clean){$("summary").textContent="Belum ada transkrip. Rekam atau simpan catatan terlebih dahulu.";return}const sentences=clean.split(/[。！？.!?；;]/).map(s=>s.trim()).filter(s=>s.length>4);const unique=[...new Set(sentences)];$("summary").textContent="Rangkuman sederhana berdasarkan transkrip:\n"+unique.slice(0,8).map((s,i)=>(i+1)+". "+s).join("\n")+"\n\nCatatan: ini ekstraksi kalimat, bukan ringkasan AI. Verifikasi dengan materi kuliah."};
+$("translateManual").onclick=async()=>{const t=$("manualText").value.trim();if(!t)return;$("translationStatus").textContent="Menerjemahkan teks uji…";$("zh").textContent=t;$("py").textContent=pinyin(t);lastTranslated="";await translateCurrent(t)};
+if("serviceWorker" in navigator && location.protocol.startsWith("http"))navigator.serviceWorker.register("./sw.js").catch(()=>{});
+})();
+</script>
+</body></html>

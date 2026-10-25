@@ -1,0 +1,9 @@
+{
+  "name": "Mandarin Live Translator",
+  "short_name": "Mandarin Live",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f3f6fa",
+  "theme_color": "#102a43",
+  "description": "Live Mandarin transcription, pinyin, and Indonesian/English translation"
+}
