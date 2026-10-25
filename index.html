@@ -65,13 +65,21 @@ textarea,input,select{width:100%;border:1px solid var(--line);border-radius:11px
   <div id="summary" style="margin-top:10px;white-space:pre-wrap;line-height:1.5"></div>
 </section>
 <section class="card">
+  <h2>Diagnostik perangkat</h2>
+  <p class="small">Periksa dukungan fitur dan koneksi layanan dari iPhone ini.</p>
+  <button class="btn secondary" id="runDiagnostics" style="width:100%">Jalankan diagnostik</button>
+  <div id="diagnostics" class="small" style="margin-top:10px;white-space:pre-wrap">Belum dijalankan.</div>
+</section>
+<section class="card">
   <h2>Uji terjemahan dengan teks</h2>
   <textarea id="manualText" placeholder="Tempel teks Mandarin di sini untuk menguji terjemahan tanpa mikrofon…"></textarea>
   <button class="btn secondary" id="translateManual" style="width:100%;margin-top:8px">Terjemahkan teks</button>
 </section>
 </main>
 <div class="footer">Versi prototipe · Catatan disimpan di perangkat ini · Jangan merekam kuliah tanpa izin.</div>
-<script src="https://cdn.jsdelivr.net/npm/pinyin-pro@3.26.0/dist/index.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pinyin-pro@3.29.5/dist/index.min.js"></script>
+<script>window.__pinyinCdnPrimaryLoaded = !!(window.pinyinPro && window.pinyinPro.pinyin);</script>
+<script>if(!window.__pinyinCdnPrimaryLoaded){document.write('<script src="https://unpkg.com/pinyin-pro@3.29.5/dist/index.js"><\\/script>');}</script>
 <script>
 (() => {
 const $ = id => document.getElementById(id);
@@ -96,14 +104,43 @@ const dictionary = [
 const saved = () => {try{return JSON.parse(localStorage.getItem("mlt-notes")||"[]")}catch{return []}};
 function setStatus(t,on=false){$("status").textContent=t;$("dot").className="dot"+(on?" on":"")}
 function setRunning(on){running=on;$("start").disabled=on;$("stop").disabled=!on}
-function pinyin(text){try{if(window.pinyinPro&&window.pinyinPro.pinyin)return window.pinyinPro.pinyin(text,{toneType:"symbol",type:"string"});}catch(e){}return "Pinyin tidak tersedia (periksa koneksi internet)."}
+function pinyin(text){
+  try {
+    if(window.pinyinPro && typeof window.pinyinPro.pinyin === "function") {
+      return window.pinyinPro.pinyin(text,{toneType:"symbol",type:"string"});
+    }
+  } catch(e) {}
+  // Offline fallback for common classroom and cardiology phrases.
+  const known = [
+    ["今天老师讲解心电图。","jīntiān lǎoshī jiǎngjiě xīndiàntú。"],
+    ["今天老师讲解心电图","jīntiān lǎoshī jiǎngjiě xīndiàntú"],
+    ["心电图","xīndiàntú"],["心肌梗死","xīnjī gěngsǐ"],["心律失常","xīnlǜ shīcháng"],
+    ["高血压","gāo xuèyā"],["冠心病","guānxīnbìng"],["心力衰竭","xīnlì shuāijié"],
+    ["房颤","fángchàn"],["心肌缺血","xīnjī quēxuè"],["血压","xuèyā"],
+    ["呼吸困难","hūxī kùnnán"],["肺炎","fèiyán"],["手术","shǒushù"],
+    ["诊断","zhěnduàn"],["治疗","zhìliáo"],["今天","jīntiān"],["老师","lǎoshī"],
+    ["讲解","jiǎngjiě"]
+  ];
+  let result = text;
+  for (const [hanzi,py] of known) result = result.replaceAll(hanzi,py);
+  return result === text && /[\u3400-\u9fff]/.test(text)
+    ? "Pinyin library tidak termuat; fallback hanya mencakup istilah umum."
+    : result;
+}
 async function translate(text,target){
-  if(!text.trim())return "";
-  // MyMemory public endpoint: suitable for prototype testing; has usage limits and is not a medical-grade service.
+  if(!text.trim()) return "";
   const url="https://api.mymemory.translated.net/get?q="+encodeURIComponent(text.slice(-450))+"&langpair=zh-CN|"+target;
-  const res=await fetch(url); if(!res.ok)throw new Error("HTTP "+res.status);
-  const data=await res.json(); if(data.responseStatus!==200 && !data.responseData?.translatedText)throw new Error(data.responseDetails||"Layanan terjemahan menolak permintaan");
-  return data.responseData.translatedText || "";
+  let res;
+  try { res = await fetch(url, {method:"GET", mode:"cors", cache:"no-store"}); }
+  catch(e) { throw new Error("Tidak dapat menghubungi API (jaringan/CORS). Detail: "+e.message); }
+  if(!res.ok) throw new Error("API HTTP "+res.status);
+  let data;
+  try { data = await res.json(); } catch(e) { throw new Error("Respons API bukan JSON yang valid"); }
+  const translated = data && data.responseData && data.responseData.translatedText;
+  if(!translated || (Number(data.responseStatus) !== 200 && Number(data.responseStatus) !== 206)) {
+    throw new Error((data && data.responseDetails) || ("API status "+(data && data.responseStatus)));
+  }
+  return translated;
 }
 async function translateCurrent(text){
   if(!text.trim()||text===lastTranslated)return; lastTranslated=text;
@@ -155,6 +192,24 @@ function renderDict(q=""){const matches=dictionary.filter(x=>x.join(" ").toLower
 $("dictSearch").addEventListener("input",e=>renderDict(e.target.value));renderDict();renderNotes();
 $("summaryBtn").onclick=()=>{const t=saved().map(n=>n.text).join(" ")+" "+finalText;const clean=t.replace(/Hasil ucapan Mandarin akan muncul di sini\\./g,"").trim();if(!clean){$("summary").textContent="Belum ada transkrip. Rekam atau simpan catatan terlebih dahulu.";return}const sentences=clean.split(/[。！？.!?；;]/).map(s=>s.trim()).filter(s=>s.length>4);const unique=[...new Set(sentences)];$("summary").textContent="Rangkuman sederhana berdasarkan transkrip:\n"+unique.slice(0,8).map((s,i)=>(i+1)+". "+s).join("\n")+"\n\nCatatan: ini ekstraksi kalimat, bukan ringkasan AI. Verifikasi dengan materi kuliah."};
 $("translateManual").onclick=async()=>{const t=$("manualText").value.trim();if(!t)return;$("translationStatus").textContent="Menerjemahkan teks uji…";$("zh").textContent=t;$("py").textContent=pinyin(t);lastTranslated="";await translateCurrent(t)};
+$("runDiagnostics").onclick=async()=>{
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  const pyReady=!!(window.pinyinPro&&typeof window.pinyinPro.pinyin==="function");
+  const lines=[];
+  lines.push("Speech Recognition API: "+(SR?"TERDETEKSI":"TIDAK TERDETEKSI"));
+  lines.push("Pinyin library: "+(pyReady?"TERMUAT":"TIDAK TERMUAT (fallback terbatas aktif)"));
+  lines.push("HTTPS: "+(location.protocol==="https:"?"ya":"tidak"));
+  lines.push("Browser: "+navigator.userAgent);
+  lines.push("Uji koneksi terjemahan: sedang diuji…");
+  $("diagnostics").textContent=lines.join("\n");
+  try {
+    const sample=await translate("今天老师讲解心电图。","id");
+    lines[4]="Uji koneksi terjemahan: BERHASIL — "+sample;
+  } catch(e) {
+    lines[4]="Uji koneksi terjemahan: GAGAL — "+e.message;
+  }
+  $("diagnostics").textContent=lines.join("\n");
+};
 if("serviceWorker" in navigator && location.protocol.startsWith("http"))navigator.serviceWorker.register("./sw.js").catch(()=>{});
 })();
 </script>
